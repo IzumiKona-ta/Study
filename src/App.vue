@@ -16,7 +16,7 @@
     <!-- 底部导航 -->
     <van-tabbar v-model="activeTab" @change="onTabChange">
       <van-tabbar-item icon="photo-o" name="vote">投票</van-tabbar-item>
-      <van-tabbar-item icon="plus-o" name="apply">报名</van-tabbar-item>
+      <van-tabbar-item icon="guide-o" name="apply">报名</van-tabbar-item>
     </van-tabbar>
   </div>
 </template>

@@ -1,38 +1,36 @@
 <template>
   <div class="activity-page">
-
-
+    <!-- 数据统计区：循环后端返回的 stats 数据 -->
     <!-- 数据统计区 -->
     <van-row class="stats-row" gutter="20">
       <van-col span="8">
         <div class="stat-item">
-          <p class="stat-number">72</p>
+          <p class="stat-number">{{ stats.partake}}</p>
           <p class="stat-label">参与数</p>
         </div>
       </van-col>
       <van-col span="8">
         <div class="stat-item">
-          <p class="stat-number">9927</p>
+          <p class="stat-number">{{ stats.ticket}}</p>
           <p class="stat-label">投票数</p>
         </div>
       </van-col>
       <van-col span="8">
         <div class="stat-item">
-          <p class="stat-number">14</p>
+          <p class="stat-number">{{ stats.visit }}</p>
           <p class="stat-label">访问量</p>
         </div>
       </van-col>
       <!-- 倒计时区 -->
       <div class="countdown-wrap">
         <van-count-down
-            :time="countdownTime"
+            :time="countdowntime"
             format="DD 天 HH 时 mm 分 ss 秒"
             class="countdown-text"
         />
       </div>
-      <!-- 报名按钮 -->
       <van-button class="apply-btn">我要报名</van-button>
-    </van-row>
+    </van-row>>
 
     <!-- 搜索框 -->
     <van-search
@@ -51,25 +49,24 @@
     >
       <van-grid :column-num="2" :gutter="10">
         <van-grid-item
-            v-for="(item, index) in imageList"
-            :key="index"
+            v-for="item in userList"
             class="grid-item"
         >
           <!-- 图片区域 -->
           <div class="img-container">
-            <img :src="item.url" alt="参赛作品" class="item-img" />
+            <img :src="item.picture" alt="参赛作品" class="item-img" />
             <div
                 class="img-tag"
                 :class="{ 'left-position': index % 2 === 0, 'right-position': index % 2 !== 0 }"
             >
-              {{ item.number }}
+              {{ item.userId }}号
             </div>
           </div>
 
           <!-- 信息区（名字、票数、按钮） -->
           <div class="info-section">
             <p class="item-name">{{ item.name }}</p>
-            <p class="item-vote">{{ item.vote }}票</p>
+            <p class="item-vote"><!--{{ item.vote }}-->0票</p>
             <van-button class="vote-btn">投票</van-button>
           </div>
         </van-grid-item>
@@ -79,88 +76,41 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import axios from 'axios';
+import { ref,onMounted } from 'vue';
+import { useRouter } from 'vue-router'; // 引入路由
 
-// 顶部背景图
-const bgImage = new URL('@/assets/bg.jpg', import.meta.url).href;
+// 响应式数据：从后端获取
+const stats = ref([]) ;               // 统计数据
+const userList = ref([]);           // 作品列表
+const countdowntime = ref(0);        // 倒计时
 
-// 数据统计
-const stats = ref([
-  { value: 72, label: '参与数' },
-  { value: 9927, label: '投票数' },
-  { value: 14, label: '访问量' }
-]);
+//请求用户列表
+fetch("api1/user/list",{
+  method:"POST",
+}).then(async res => {
+  const data = await res.json();
+  userList.value = data.obj.userlist;
+})
+//获取统计信息
+fetch("api1/home/index",{
+  method:"GET",
+}).then(async res => {
+  const data = await res.json();
+  stats.value = data.obj;
+  countdowntime.value=stats.activitytime;
+})
 
-// 倒计时时间（示例：6天14时26分23秒 → 转换为毫秒）
-const countdownTime = ref(6 * 24 * 60 * 60 * 1000 + 14 * 60 * 60 * 1000 + 26 * 60 * 1000 + 23 * 1000);
+
+/*// 页面每次挂载（打开）时都执行一次请求
+onMounted(fetchData);*/
 
 // 搜索框
 const searchVal = ref('');
-
-// 作品列表（新增name和vote字段）
-const imageList = ref([
-  {
-    url: new URL('@/assets/img.jpg', import.meta.url).href,
-    number: '25号',
-    name: '泉此方',
-    vote: 2014
-  },
-  {
-    url: new URL('@/assets/img2.jpg', import.meta.url).href,
-    number: '70号',
-    name: '泉此方',
-    vote: 1862
-  },
-  {
-    url: new URL('@/assets/img3.jpg', import.meta.url).href,
-    number: '18号',
-    name: '泉彼方',
-    vote: 1234
-  },
-  {
-    url: new URL('@/assets/img2.jpg', import.meta.url).href,
-    number: '78号',
-    name: '菲比',
-    vote: 5678
-  }
-]);
-
 // 加载状态
 const loading = ref(false);
 const finished = ref(false);
 
-// // 加载更多作品
-// const onLoad = () => {
-//   // 模拟异步加载
-//   setTimeout(() => {
-//     // 生成新数据
-//     const newItems = [
-//       {
-//         url: new URL('@/assets/img.jpg', import.meta.url).href,
-//         number: '25号',
-//         name: '新加1',
-//         vote: 1000
-//       },
-//       {
-//         url: new URL('@/assets/img2.jpg', import.meta.url).href,
-//         number: '70号',
-//         name: '新加2',
-//         vote: 800
-//       }
-//     ];
-//
-//     // 添加到列表
-//     imageList.value = [...imageList.value, ...newItems];
-//
-//     // 设置加载状态
-//     loading.value = false;
-//
-//     // 模拟数据加载完毕
-//     if (imageList.value.length >= 12) {
-//       finished.value = true;
-//     }
-//   }, 1000);
-// };
 </script>
 
 <style scoped>
@@ -193,11 +143,9 @@ const finished = ref(false);
   font-weight: bold;
   margin-bottom: 4px;
 }
-
 .stat-label {
   font-size: 14px;
 }
-
 /* 倒计时区 */
 .countdown-wrap {
   display: flex;

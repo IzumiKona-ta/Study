@@ -2,6 +2,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import Vote from '../components/homework/Vote.vue';  // 替换为实际组件路径
 import Apply from '../components/homework/Apply.vue';  // 替换为实际组件路径
+import Apply_Test from "@/components/homework/Apply_Test.vue";
 
 const routes = [
     {

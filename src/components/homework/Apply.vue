@@ -1,184 +1,160 @@
 <template>
-  <div class="apply-page">
-    <div class="apply-container">
-      <van-form @submit="onSubmit" @validate="onValidate">
-        <!-- 姓名 -->
+  <div class="enroll">
+    <!-- 表单：保留原有结构，修复校验和提交逻辑 -->
+    <van-form @submit="onSubmit" :validate-trigger="['onChange', 'onBlur']">
+      <van-cell-group inset>
+        <!-- 名称：修复校验规则（required: true） -->
         <van-field
             v-model="form.name"
             name="name"
-            label="姓名"
-            placeholder="请输入您的姓名"
-            required
+            label="名称"
+            placeholder="请填写名称"
             :rules="[
-            { required: true, message: '请输入姓名' },
-            { min: 2, message: '姓名至少2个字符' }
+            { required: true, message: '请填写名称' }
           ]"
         />
 
-        <!-- 手机号 -->
+        <!-- 手机：修复校验规则（required: true + 格式校验） -->
         <van-field
             v-model="form.phone"
             name="phone"
-            label="手机号"
-            placeholder="请输入您的手机号"
-            type="tel"
-            required
+            label="手机"
+            placeholder="请填写手机"
+            type="phone"
             :rules="[
-            { required: true, message: '请输入手机号' },
-            {/* pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' */}
+            { required: true, message: '请填写手机号' },
+            { pattern: /^1[3-9]\d{9}$/, message: '手机号格式错误' }
           ]"
         />
 
-        <!-- 图片上传 -->
-        <van-uploader
-            v-model="form.images"
-            :max-count="1"
-            :after-read="afterRead"
-            accept="image/*"
-            upload-text="上传作品图片"
-        >
-          <template #preview-cover="{ item }">
-            <van-button size="mini" text="删除" @click="deleteImage(item)" />
+        <!-- 文件上传：保留原有结构，绑定到form.images -->
+        <van-field name="uploader" label="文件上传">
+          <template #input>
+            <van-uploader
+                v-model="form.images"
+                max-count="1"
+                :after-read="afterRead"
+                accept="image/*"
+            />
           </template>
-        </van-uploader>
-        <div class="upload-tip">请上传清晰的作品图片（支持JPG、PNG格式）</div>
+        </van-field>
+      </van-cell-group>
 
-        <!-- 提交按钮 -->
-        <van-button type="primary" native-type="submit" class="submit-btn">
-          提交报名
+      <!-- 提交按钮：保留原有样式 -->
+      <div style="margin: 16px;">
+        <van-button
+            round
+            block
+            type="primary"
+            native-type="submit"
+        >
+          提交
         </van-button>
-      </van-form>
-    </div>
+      </div>
+    </van-form>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { showToast } from 'vant';
+import { ref, onMounted } from 'vue';
+import { showSuccessToast, showToast } from 'vant';
+import { useRouter } from 'vue-router';
 
+// 1. 统一表单数据管理（替代零散的ref）
 const form = ref({
   name: '',
   phone: '',
-  images: []
+  images: [] // 存储上传的文件（van-uploader 默认格式）
 });
+const imageUrl = ref(''); // 后端返回的图片URL
+const router = useRouter();
 
-// 图片上传后处理
-const afterRead = (file) => {
-  form.value.images = [file.content];
-};
-
-// 删除图片
-const deleteImage = (item) => {
-  form.value.images = form.value.images.filter(img => img !== item);
-};
-
-// 表单验证回调
-const onValidate = (name, error) => {
-  if (error) {
-    showToast(error.message);
-  }
-};
-
-// 提交表单（修复所有错误）
-const onSubmit = async () => {
-  let loadingInstance = null; // 提升作用域，确保catch可访问
+// 2. 图片上传逻辑：先上传到服务器，拿到URL
+const afterRead = async (file) => {
   try {
-    // 显示加载提示
-    loadingInstance = showToast({
-      type: 'loading',
-      message: '提交中...',
-      forbidClick: true,
-      duration: 0 // 持续显示，需手动关闭
-    });
-
-    // 构建表单数据
+    showToast({ type: 'loading', message: '图片上传中...' });
     const formData = new FormData();
-    formData.append('name', form.value.name);
-    formData.append('phone', form.value.phone);
+    formData.append('files', file.file); // file.file 是原生文件对象
 
-    // 处理图片（Base64转Blob）
-    if (form.value.images.length > 0) {
-      const base64 = form.value.images[0];
-      const response = await fetch(base64);
-      const blob = await response.blob();
-      formData.append('image', blob, 'upload.jpg');
-    }
-
-    // 发送请求（通过Vite代理绕跨域，路径改为/api）
-    const response = await fetch('/api/upload', {
+    // 上传图片到后端（保持你原有的接口）
+    const res = await fetch('/api1/upload/picture', {
       method: 'POST',
       body: formData
     });
+    const data = await res.json();
+    imageUrl.value = data.url; // 保存后端返回的图片URL
+    showToast.clear();
+  } catch (err) {
+    showToast({ type: 'fail', message: '图片上传失败' });
+    console.error('图片上传失败:', err);
+  }
+};
 
-    // 处理响应：先判断状态，再解析数据
-    if (!response.ok) {
-      const errorText = await response.text(); // 读取非JSON响应
-      throw new Error(errorText || '请求失败');
-    }
+// 3. 提交报名逻辑：等图片上传完，再提交表单
+const onSubmit = async (e) => {
+  // e.preventDefault(); // 阻止默认提交
 
-    // 尝试解析JSON（防御后端返回非JSON）
-    let result;
-    try {
-      result = await response.json();
-    } catch (jsonError) {
-      throw new Error(`后端数据格式错误：${jsonError.message}`);
-    }
+  // 校验图片是否上传（如果必须上传）
+  if (form.value.images.length === 0 || !imageUrl.value) {
+    return showToast({ type: 'fail', message: '请先上传图片' });
+  }
 
-    // 关闭加载 & 提示成功
-    loadingInstance.close();
-    showToast({
-      type: 'success',
-      message: result.message || '报名成功！'
+  try {
+    showToast({ type: 'loading', message: '提交中...', duration: 0 });
+
+    // 构造请求体（保持你原有的参数）
+    const requestBody = JSON.stringify({
+      openid: "hujingshan",
+      avatar: "",
+      name: form.value.name,
+      nickname: form.value.name,
+      phone: form.value.phone,
+      picture: imageUrl.value
     });
 
-    // 重置表单
-    form.value = { name: '', phone: '', images: [] };
-
-  } catch (error) {
-    // 关闭加载（若存在）
-    if (loadingInstance) {
-      loadingInstance.close();
-    }
-    // 提示错误
-    showToast({
-      type: 'fail',
-      message: error.message || '网络错误，请重试'
+    // 提交到后端（保持你原有的接口）
+    const res = await fetch('/api1/user/save', {
+      method: 'POST',
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: requestBody
     });
+    const data = await res.json();
+
+    if (data.success) {
+      showSuccessToast('报名成功');
+      setTimeout(() => {
+        router.push({ name: 'home' }); // 保持你原有的跳转
+        form.value = { name: '', phone: '', images: [] }; // 重置表单
+        imageUrl.value = ''; // 重置图片URL
+      }, 1000);
+    } else {
+      showToast({ type: 'fail', message: data.message || '提交失败' });
+    }
+  } catch (err) {
+    showToast({ type: 'fail', message: '网络异常，请重试' });
+    console.error('提交失败:', err);
+  } finally {
+    showToast.clear();
   }
 };
 </script>
 
 <style scoped>
-.apply-page {
+.enroll {
   padding: 20px;
-  padding-bottom: 60px; /* 预留底部导航空间 */
 }
-
-.apply-container {
+.van-form {
   background: rgba(255, 255, 255, 0.8);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0.1);
 }
-
 .van-field {
   margin-bottom: 16px;
 }
-
 .van-uploader {
   margin: 16px 0;
-}
-
-.upload-tip {
-  font-size: 12px;
-  color: #666;
-  margin-top: 8px;
-  margin-bottom: 20px;
-}
-
-.submit-btn {
-  margin-top: 20px;
-  height: 44px;
-  border-radius: 22px;
 }
 </style>
