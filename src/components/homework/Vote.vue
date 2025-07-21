@@ -30,7 +30,7 @@
         />
       </div>
       <van-button class="apply-btn">我要报名</van-button>
-    </van-row>>
+    </van-row>
 
     <!-- 搜索框 -->
     <van-search
@@ -66,7 +66,7 @@
           <!-- 信息区（名字、票数、按钮） -->
           <div class="info-section">
             <p class="item-name">{{ item.name }}</p>
-            <p class="item-vote"><!--{{ item.vote }}-->0票</p>
+            <p class="item-vote">{{ item.ticket }}票</p>
             <van-button class="vote-btn">投票</van-button>
           </div>
         </van-grid-item>
@@ -90,7 +90,11 @@ fetch("api1/user/list",{
   method:"POST",
 }).then(async res => {
   const data = await res.json();
-  userList.value = data.obj.userlist;
+  const sortedList = data.obj.userlist.sort((a, b) => {
+    // 处理可能的字符串类型（确保转为数字）
+    return Number(b.ticket) - Number(a.ticket);
+  });
+  userList.value = sortedList;
 })
 //获取统计信息
 fetch("api1/home/index",{
@@ -98,7 +102,17 @@ fetch("api1/home/index",{
 }).then(async res => {
   const data = await res.json();
   stats.value = data.obj;
-  countdowntime.value=stats.activitytime;
+  // 1. 解析后端返回的日期字符串为 Date 对象
+  const targetDate = new Date(stats.value.activitytime);
+  // 2. 转换为毫秒时间戳
+  const targetTime = targetDate.getTime();
+  // 3. 当前时间戳
+  const now = new Date().getTime();
+  // 4. 计算时间差（毫秒）
+  const timeDiff = targetTime - now;
+
+  // 5. 处理过期情况（时间差为负则设为 0）
+  countdowntime.value = timeDiff > 0 ? timeDiff : 0;
 })
 
 

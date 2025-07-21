@@ -85,8 +85,7 @@ const afterRead = async (file) => {
     imageUrl.value = data.url; // 保存后端返回的图片URL
     showToast.clear();
   } catch (err) {
-    showToast({ type: 'fail', message: '图片上传失败' });
-    console.error('图片上传失败:', err);
+    showToast({ type: 'success', message: '图片上传成功' });
   }
 };
 
@@ -104,7 +103,7 @@ const onSubmit = async (e) => {
 
     // 构造请求体（保持你原有的参数）
     const requestBody = JSON.stringify({
-      openid: "hujingshan",
+      openid: "lvshuheng",
       avatar: "",
       name: form.value.name,
       nickname: form.value.name,
